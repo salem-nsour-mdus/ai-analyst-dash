@@ -21,6 +21,7 @@ const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
 // Store chat history and dashboard data
 let dashboardData = [];
+let chatHistory = [];
 
 export const geminiService = {
   initializeWithData(insights) {
