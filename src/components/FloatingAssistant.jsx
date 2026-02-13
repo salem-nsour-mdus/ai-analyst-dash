@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 export function FloatingAssistant() {
   const [isHovering, setIsHovering] = useState(false);
@@ -8,7 +8,7 @@ export function FloatingAssistant() {
   const assistantRef = useRef(null);
   const timeoutRef = useRef(null);
 
-  const tips = [
+  const tips = useMemo(() => ([
     "💡 Click on any insight to see details and delete it",
     "📌 Pin important insights to save them in the sidebar",
     "✨ Add your own insights with the 'Add Insight' button",
@@ -19,70 +19,70 @@ export function FloatingAssistant() {
     "🎉 Celebrate when you add new insights!",
     "👋 Need help? Just click on me!",
     "🤖 I'm here to guide you through the dashboard"
-  ];
+  ]), []);
 
- useEffect(() => {
-  // Gentle wave animation
-  const waveInterval = setInterval(() => {
-    setWaveOffset(prev => (prev + 1) % 4);
-  }, 500);
+  useEffect(() => {
+    // Gentle wave animation
+    const waveInterval = setInterval(() => {
+      setWaveOffset(prev => (prev + 1) % 4);
+    }, 500);
 
-  // Show random tip every 30 seconds
-  const showRandomTip = () => {
-    const randomTip = tips[Math.floor(Math.random() * tips.length)];
-    setMessage(randomTip);
-    setShowMessage(true);
-    
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setShowMessage(false);
-    }, 5000);
-  };
+    // Show random tip every 30 seconds
+    const showRandomTip = () => {
+      const randomTip = tips[Math.floor(Math.random() * tips.length)];
+      setMessage(randomTip);
+      setShowMessage(true);
 
-  // Show first tip after 10 seconds
-  const initialTimeout = setTimeout(showRandomTip, 10000);
-  
-  // Set interval for subsequent tips
-  const interval = setInterval(showRandomTip, 30000);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setShowMessage(false);
+      }, 5000);
+    };
 
-  // React to mouse movement with subtle head turn
-  const handleMouseMove = (e) => {
-    if (!assistantRef.current) return;
-    
-    const rect = assistantRef.current.getBoundingClientRect();
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-    
-    // Calculate if mouse is near the assistant
-    const distance = Math.sqrt(
-      Math.pow(mouseX - (rect.left + 40), 2) + 
-      Math.pow(mouseY - (rect.top + 40), 2)
-    );
-    
-    if (distance < 200) {
-      // Subtle scale when mouse is near
-      assistantRef.current.style.transform = 'scale(1.05)';
-    } else {
-      assistantRef.current.style.transform = 'scale(1)';
-    }
-  };
+    // Show first tip after 10 seconds
+    const initialTimeout = setTimeout(showRandomTip, 10000);
 
-  window.addEventListener('mousemove', handleMouseMove);
+    // Set interval for subsequent tips
+    const interval = setInterval(showRandomTip, 30000);
 
-  return () => {
-    clearInterval(waveInterval);
-    clearTimeout(initialTimeout);
-    clearInterval(interval);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    window.removeEventListener('mousemove', handleMouseMove);
-  };
-}, [tips]); 
+    // React to mouse movement with subtle head turn
+    const handleMouseMove = (e) => {
+      if (!assistantRef.current) return;
+
+      const rect = assistantRef.current.getBoundingClientRect();
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+
+      // Calculate if mouse is near the assistant
+      const distance = Math.sqrt(
+        Math.pow(mouseX - (rect.left + 40), 2) +
+        Math.pow(mouseY - (rect.top + 40), 2)
+      );
+
+      if (distance < 200) {
+        // Subtle scale when mouse is near
+        assistantRef.current.style.transform = 'scale(1.05)';
+      } else {
+        assistantRef.current.style.transform = 'scale(1)';
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      clearInterval(waveInterval);
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [tips]);
 
   const handleClick = () => {
     const randomTip = tips[Math.floor(Math.random() * tips.length)];
     setMessage(randomTip);
     setShowMessage(true);
-    
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setShowMessage(false);
@@ -133,17 +133,17 @@ export function FloatingAssistant() {
             {isHovering ? getWaveEmoji() : '🤖'}
           </span>
         </div>
-        
+
         {/* Status indicator */}
         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900 animate-pulse"></div>
-        
+
         {/* Small floating dots for effect */}
         <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 flex gap-1">
           <span className="w-1 h-1 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
           <span className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
           <span className="w-1 h-1 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
         </div>
-        
+
         {/* Hover tooltip */}
         {isHovering && !showMessage && (
           <div className="absolute bottom-full right-0 mb-2 whitespace-nowrap bg-gray-900 text-white text-sm px-3 py-1.5 rounded-lg animate-fadeIn">
