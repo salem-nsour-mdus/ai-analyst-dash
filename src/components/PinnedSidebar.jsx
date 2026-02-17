@@ -55,6 +55,7 @@ export function PinnedSidebar({ pinnedItems = [], onItemClick }) {
                     ? 'User Behavior'
                     : 'Market Trend'}
                 </span>
+                {/* Confidence Badge - Color Coded Green/Yellow/Red */}
                 <span className={`
                   text-xs px-2 py-1 rounded-full font-medium flex-shrink-0
                   ${confidence >= 80 

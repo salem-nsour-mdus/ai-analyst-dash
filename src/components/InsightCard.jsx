@@ -1,12 +1,16 @@
 export function InsightCard({ insight, isPinned, onPinClick, onClick }) {
   const getConfidenceColor = (score) => {
     const percent = Math.round(score * 100);
-    if (percent >= 80) return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 border-green-200 dark:border-green-800';
-    if (percent >= 60) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
-    return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 border-red-200 dark:border-red-800';
+    console.log(`Confidence score: ${percent}%`); // Debug log
+    
+    if (percent >= 80) {
+      return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 border-green-200 dark:border-green-800'; // Green for high confidence (80-100%)
+    }
+    if (percent >= 60) {
+      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'; // Yellow for medium confidence (60-79%)
+    }
+    return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 border-red-200 dark:border-red-800'; // Red for low confidence (0-59%)
   };
-
-  
 
   const getSourceColor = (source) => {
     const ext = source.split('.').pop().toUpperCase();
@@ -53,6 +57,9 @@ export function InsightCard({ insight, isPinned, onPinClick, onClick }) {
     });
   };
 
+  // Determine confidence level for debugging
+  const confidenceLevel = confidenceScore >= 80 ? 'High' : confidenceScore >= 60 ? 'Medium' : 'Low';
+
   return (
     <div 
       onClick={onClick}
@@ -90,13 +97,17 @@ export function InsightCard({ insight, isPinned, onPinClick, onClick }) {
         </h3>
       </div>
 
-      {/* Confidence Badge */}
-      <div className="mb-4 transform transition-all duration-300 group-hover:scale-105 group-hover:translate-x-1">
+      {/* Confidence Badge - Color Coded Green/Yellow/Red */}
+      <div className="mb-4">
         <span className={`
           inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border
           ${getConfidenceColor(confidenceScore)}
         `}>
           {confidenceScore}% Confidence
+        </span>
+        {/* Small debug indicator - remove after confirming colors work */}
+        <span className="ml-2 text-xs text-gray-400">
+          ({confidenceLevel})
         </span>
       </div>
 
@@ -111,9 +122,7 @@ export function InsightCard({ insight, isPinned, onPinClick, onClick }) {
                 className={`
                   px-2.5 py-1 text-xs font-medium rounded-md border
                   ${getSourceColor(source)}
-                  transform transition-all duration-300 hover:scale-110 hover:-translate-y-1
                 `}
-                style={{ animationDelay: `${index * 50}ms` }}
               >
                 {ext}
               </span>
@@ -142,7 +151,7 @@ export function InsightCard({ insight, isPinned, onPinClick, onClick }) {
         </span>
       </div>
 
-      {/* Processing Indicator - Only if status is processing */}
+      {/* Processing Indicator */}
       {insight.status === 'processing' && (
         <div className="absolute bottom-6 right-6">
           <span className="relative flex h-2 w-2">

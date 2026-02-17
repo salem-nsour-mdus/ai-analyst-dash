@@ -10,10 +10,9 @@ import { ChatMessage } from './components/ChatMessage';
 import { AddInsightModal } from './components/AddInsightModal';
 import { InsightModal } from './components/InsightModal';
 import { StatModal } from './components/StatModal';
-import { Toast } from './components/Toast';
 import { FloatingAssistant } from './components/FloatingAssistant';
 import { geminiService } from './services/geminiService';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function App() {
   const {
@@ -30,6 +29,14 @@ function App() {
 
   // Remove the second insight (uuid-5678) from display
   const filteredOriginalInsights = insights.filter(i => i.id !== "uuid-5678");
+
+  // Scroll animation state
+  const [scrollY, setScrollY] = useState(0);
+  const [showHeaderContent, setShowHeaderContent] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const headerRef = useRef(null);
+  const heroRef = useRef(null);
+  const statsRef = useRef(null);
 
   // Chat states
   const [chatMessages, setChatMessages] = useState([
@@ -52,27 +59,59 @@ function App() {
   const [selectedStat, setSelectedStat] = useState(null);
   const [isStatModalOpen, setIsStatModalOpen] = useState(false);
 
-  // Toast states
-  const [toast, setToast] = useState(null);
+  // Chat container ref for auto-scroll
+  const chatContainerRef = useRef(null);
+
+  // Handle scroll for hero animation
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setScrollY(currentScrollY);
+      
+      // Show header content when scrolled past hero
+      if (currentScrollY > 100) {
+        setShowHeaderContent(true);
+      } else {
+        setShowHeaderContent(false);
+      }
+      
+      // Show stats when hero starts fading (between 50px and 400px scroll)
+      if (currentScrollY > 50 && currentScrollY < 400) {
+        setShowStats(true);
+      } else {
+        setShowStats(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   // Initialize Gemini with insights data
-useEffect(() => {
-  if (filteredOriginalInsights.length > 0 && !geminiInitialized) {
-    geminiService.initializeWithData(filteredOriginalInsights);
-    setGeminiInitialized(true);
-    
-    setTimeout(() => {
-      const avgConf = Math.round(filteredOriginalInsights.reduce((acc, i) => acc + i.meta.confidence_score, 0) / filteredOriginalInsights.length * 100);
-      const dataMessage = {
-        id: chatMessages.length + 1,
-        type: 'assistant',
-        message: `✅ I've loaded ${filteredOriginalInsights.length} insights with an average confidence of ${avgConf}%. I can help you analyze trends, identify patterns, or answer specific questions about your data.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setChatMessages(prev => [...prev, dataMessage]);
-    }, 1000);
-  }
-}, [filteredOriginalInsights, geminiInitialized, chatMessages.length]);
+  useEffect(() => {
+    if (filteredOriginalInsights.length > 0 && !geminiInitialized) {
+      geminiService.initializeWithData(filteredOriginalInsights);
+      setGeminiInitialized(true);
+      
+      setTimeout(() => {
+        const avgConf = Math.round(filteredOriginalInsights.reduce((acc, i) => acc + i.meta.confidence_score, 0) / filteredOriginalInsights.length * 100);
+        const dataMessage = {
+          id: chatMessages.length + 1,
+          type: 'assistant',
+          message: `✅ I've loaded ${filteredOriginalInsights.length} insights with an average confidence of ${avgConf}%. I can help you analyze trends, identify patterns, or answer specific questions about your data.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, dataMessage]);
+      }, 1000);
+    }
+  }, [filteredOriginalInsights, geminiInitialized, chatMessages.length]);
 
   const handleSendMessage = async (message) => {
     if (!message.trim()) return;
@@ -126,31 +165,6 @@ useEffect(() => {
 
   const handleAddInsight = (newInsight) => {
     setCustomInsights(prev => [newInsight, ...prev]);
-    // Show celebration toast
-    setToast({
-      type: 'success',
-      message: '🎉 Insight added successfully! Great work!'
-    });
-  };
-
-  const handleDeleteInsight = (insightId) => {
-    // Remove from custom insights if it's a custom one
-    if (insightId.startsWith('uuid-') && !insightId.startsWith('uuid-1234')) {
-      setCustomInsights(prev => prev.filter(i => i.id !== insightId));
-    } else {
-      // For original insights, we'll just show a message since they're from mock API
-      setToast({
-        type: 'info',
-        message: 'Original insights cannot be deleted, but you can hide them with filters!'
-      });
-      return;
-    }
-    
-    // Show delete confirmation toast
-    setToast({
-      type: 'warning',
-      message: '🗑️ Insight deleted successfully'
-    });
   };
 
   const handleInsightClick = (insight) => {
@@ -192,22 +206,56 @@ useEffect(() => {
     i.payload.sources?.map(s => s.split('.').pop().toUpperCase()) || []
   ))].length;
 
+  // Calculate hero title size and position based on scroll
+  const heroTitleSize = Math.max(1.5, 4 - scrollY * 0.02);
+  const heroTitleOpacity = Math.max(0, 1 - scrollY * 0.01);
+  const heroTitleY = Math.max(0, scrollY * 0.5);
+
+  // Calculate info boxes opacity based on scroll
+  const infoBoxesOpacity = Math.min(1, Math.max(0, (scrollY - 50) / 200));
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B0E14] transition-colors duration-200">
-      {/* Toast notifications */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-
-      {/* Floating Assistant */}
-      <FloatingAssistant />
+      {/* Hero Section - Full Screen Cover */}
+      <section 
+        ref={heroRef}
+        className="fixed top-0 left-0 w-full h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900 z-40 pointer-events-none"
+        style={{
+          opacity: heroTitleOpacity,
+          transform: `translateY(${heroTitleY}px)`
+        }}
+      >
+        <div className="text-center px-4">
+          <h1 
+            className="font-bold text-white mb-4 transition-all duration-300"
+            style={{
+              fontSize: `${heroTitleSize}rem`,
+              lineHeight: '1.2'
+            }}
+          >
+            AI Analyst Dashboard
+          </h1>
+          <p className="text-xl text-white/90 max-w-2xl mx-auto">
+            Powered by Google Gemini AI
+          </p>
+          <div className="mt-8 flex gap-4 justify-center">
+            <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-3 h-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+          <p className="text-white/60 text-sm mt-8">Scroll down to explore</p>
+        </div>
+      </section>
 
       {/* Header */}
-      <header className="bg-white dark:bg-[#0F1219]/95 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+      <header 
+        ref={headerRef}
+        className="fixed top-0 left-0 w-full bg-white dark:bg-[#0F1219]/95 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 z-50 transition-all duration-300"
+        style={{
+          transform: showHeaderContent ? 'translateY(0)' : 'translateY(-100%)',
+          opacity: showHeaderContent ? 1 : 0
+        }}
+      >
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -235,8 +283,117 @@ useEffect(() => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Chat Section - Top */}
+      {/* Spacer for hero section */}
+      <div className="h-screen"></div>
+
+      {/* Animated Info Boxes - Appear as hero fades */}
+      <div 
+        ref={statsRef}
+        className="max-w-7xl mx-auto px-6 transition-all duration-700"
+        style={{
+          opacity: infoBoxesOpacity,
+          transform: `translateY(${30 * (1 - infoBoxesOpacity)}px)`,
+          marginTop: '-80px',
+          marginBottom: '50px'
+        }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Box 1: AI-Powered Analytics */}
+          <div className="group perspective">
+            <div className="relative bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700 rounded-2xl p-8 shadow-xl hover:shadow-2xl transform transition-all duration-500 hover:scale-105 hover:-translate-y-2 cursor-pointer overflow-hidden">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8 group-hover:scale-150 transition-transform duration-700"></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform duration-300">
+                  <span className="text-3xl">🤖</span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">AI-Powered Analytics</h3>
+                <p className="text-white/80 leading-relaxed">
+                  Real-time insights generated by Google Gemini AI. Ask questions, get answers, and make data-driven decisions instantly.
+                </p>
+                <div className="mt-6 flex items-center gap-2 text-white/60 text-sm">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  <span>Active 24/7</span>
+                </div>
+              </div>
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </div>
+          </div>
+
+          {/* Box 2: Smart Insights */}
+          <div className="group perspective">
+            <div className="relative bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 rounded-2xl p-8 shadow-xl hover:shadow-2xl transform transition-all duration-500 hover:scale-105 hover:-translate-y-2 cursor-pointer overflow-hidden">
+              {/* Decorative elements */}
+              <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-8 -mb-8 group-hover:scale-150 transition-transform duration-700"></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform duration-300">
+                  <span className="text-3xl">💡</span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Smart Insights</h3>
+                <p className="text-white/80 leading-relaxed">
+                  Color-coded confidence scores (🟢 High, 🟡 Medium, 🔴 Low) help you prioritize what matters most.
+                </p>
+                <div className="mt-6 flex items-center gap-3">
+                  <span className="px-2 py-1 bg-green-500/30 backdrop-blur-sm rounded-full text-xs text-white">80-100%</span>
+                  <span className="px-2 py-1 bg-yellow-500/30 backdrop-blur-sm rounded-full text-xs text-white">60-79%</span>
+                  <span className="px-2 py-1 bg-red-500/30 backdrop-blur-sm rounded-full text-xs text-white">0-59%</span>
+                </div>
+              </div>
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </div>
+          </div>
+
+          {/* Box 3: Interactive Features */}
+          <div className="group perspective">
+            <div className="relative bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-600 dark:to-orange-700 rounded-2xl p-8 shadow-xl hover:shadow-2xl transform transition-all duration-500 hover:scale-105 hover:-translate-y-2 cursor-pointer overflow-hidden">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8 group-hover:scale-150 transition-transform duration-700"></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform duration-300">
+                  <span className="text-3xl">🎯</span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Interactive Features</h3>
+                <p className="text-white/80 leading-relaxed">
+                  Pin important insights, add your own data, delete what you don't need. Everything updates in real-time.
+                </p>
+                <div className="mt-6 flex items-center gap-4 text-white/60 text-sm">
+                  <span className="flex items-center gap-1">📌 Pin</span>
+                  <span className="flex items-center gap-1">✨ Add</span>
+                  <span className="flex items-center gap-1">🗑️ Delete</span>
+                </div>
+              </div>
+              
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Small scroll indicator */}
+        <div className="flex justify-center mt-8">
+          <div className="flex gap-2">
+            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+            <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-6 py-8 relative z-30 bg-[#F8FAFC] dark:bg-[#0B0E14]">
+        {/* Chat Section - Top with fixed height and scroll */}
         <div className="mb-8">
           {error ? (
             <ErrorCard 
@@ -267,8 +424,11 @@ useEffect(() => {
                 </button>
               </div>
 
-              {/* Chat Messages */}
-              <div className="p-6 pb-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {/* Chat Messages - Fixed height with auto-scroll */}
+              <div 
+                ref={chatContainerRef}
+                className="p-6 h-[400px] overflow-y-auto custom-scrollbar"
+              >
                 <div className="space-y-4">
                   {chatMessages.map(msg => (
                     <ChatMessage key={msg.id} message={msg} />
@@ -300,7 +460,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Stats Overview - Accurate numbers */}
+        {/* Stats Overview - 3 Cards (for below chat) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div 
             onClick={() => handleStatClick('total', totalInsights)}
@@ -327,7 +487,13 @@ useEffect(() => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Avg. Confidence</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{avgConfidence}%</p>
+                <p className={`text-3xl font-bold ${
+                  avgConfidence >= 80 ? 'text-green-600 dark:text-green-400' :
+                  avgConfidence >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
+                  'text-red-600 dark:text-red-400'
+                }`}>
+                  {avgConfidence}%
+                </p>
               </div>
               <div className="w-10 h-10 bg-green-50 dark:bg-green-500/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                 <span className="text-green-600 dark:text-green-400 text-xl">📈</span>
@@ -425,25 +591,34 @@ useEffect(() => {
         </div>
       </main>
 
+      {/* Floating Assistant */}
+      <FloatingAssistant />
+
       {/* Modals */}
-      <AddInsightModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddInsight}
-      />
+      {isAddModalOpen && (
+        <AddInsightModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onAdd={handleAddInsight}
+        />
+      )}
 
-      <InsightModal
-        isOpen={isInsightModalOpen}
-        onClose={() => setIsInsightModalOpen(false)}
-        insight={selectedInsight}
-        onDelete={handleDeleteInsight}
-      />
+      {isInsightModalOpen && (
+        <InsightModal
+          isOpen={isInsightModalOpen}
+          onClose={() => setIsInsightModalOpen(false)}
+          insight={selectedInsight}
+          onDelete={() => {}}
+        />
+      )}
 
-      <StatModal
-        isOpen={isStatModalOpen}
-        onClose={() => setIsStatModalOpen(false)}
-        stat={selectedStat}
-      />
+      {isStatModalOpen && (
+        <StatModal
+          isOpen={isStatModalOpen}
+          onClose={() => setIsStatModalOpen(false)}
+          stat={selectedStat}
+        />
+      )}
     </div>
   );
 }

@@ -54,6 +54,7 @@ export function InsightModal({ isOpen, onClose, insight, onDelete }) {
                   {insight.payload.type.replace('_', ' ')}
                 </h2>
                 <div className="flex items-center gap-3 mt-2">
+                  {/* Confidence Badge - Color Coded Green/Yellow/Red */}
                   <span className={`
                     px-3 py-1 rounded-full text-sm font-mono font-medium
                     ${getConfidenceColor(insight.meta.confidence_score)}
