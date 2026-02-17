@@ -33,7 +33,7 @@ function App() {
   // Scroll animation state
   const [scrollY, setScrollY] = useState(0);
   const [showHeaderContent, setShowHeaderContent] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [, setShowStats] = useState(false);
   const headerRef = useRef(null);
   const heroRef = useRef(null);
   const statsRef = useRef(null);
